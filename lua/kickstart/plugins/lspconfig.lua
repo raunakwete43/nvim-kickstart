@@ -3,7 +3,7 @@ return {
     'neovim/nvim-lspconfig',
     dependencies = {
       -- Automatically install LSPs and related tools to stdpath for Neovim
-      'williamboman/mason.nvim',
+      { 'williamboman/mason.nvim', config = true }, -- NOTE: Must be loaded before dependants
       'williamboman/mason-lspconfig.nvim',
       'WhoIsSethDaniel/mason-tool-installer.nvim',
 
@@ -16,6 +16,24 @@ return {
       { 'folke/neodev.nvim', opts = {} },
     },
     config = function()
+      local TSOrganizeImports = function()
+        vim.lsp.buf.code_action {
+          apply = true,
+          context = {
+            only = { 'source.organizeImports.ts' },
+            diagnostics = {},
+          },
+        }
+      end
+      local TSRemoveUnused = function()
+        vim.lsp.buf.code_action {
+          apply = true,
+          context = {
+            only = { 'source.removeUnused.ts' },
+            diagnostics = {},
+          },
+        }
+      end
       -- Brief aside: **What is LSP?**
       --
       -- LSP is an initialism you've probably heard, but might not understand what it is.
@@ -105,15 +123,36 @@ return {
           -- When you move your cursor, the highlights will be cleared (the second autocommand).
           local client = vim.lsp.get_client_by_id(event.data.client_id)
           if client and client.server_capabilities.documentHighlightProvider then
+            local highlight_augroup = vim.api.nvim_create_augroup('kickstart-lsp-highlight', { clear = false })
             vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
               buffer = event.buf,
+              group = highlight_augroup,
               callback = vim.lsp.buf.document_highlight,
             })
 
             vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
               buffer = event.buf,
+              group = highlight_augroup,
               callback = vim.lsp.buf.clear_references,
             })
+
+            vim.api.nvim_create_autocmd('LspDetach', {
+              group = vim.api.nvim_create_augroup('kickstart-lsp-detach', { clear = true }),
+              callback = function(event2)
+                vim.lsp.buf.clear_references()
+                vim.api.nvim_clear_autocmds { group = 'kickstart-lsp-highlight', buffer = event2.buf }
+              end,
+            })
+          end
+
+          -- The following autocommand is used to enable inlay hints in your
+          -- code, if the language server you are using supports them
+          --
+          -- This may be unwanted, since they displace some of your code
+          if client and client.server_capabilities.inlayHintProvider and vim.lsp.inlay_hint then
+            map('<leader>th', function()
+              vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled())
+            end, '[T]oggle Inlay [H]ints')
           end
         end,
       })
@@ -134,19 +173,97 @@ return {
       --  - capabilities (table): Override fields in capabilities. Can be used to disable certain LSP features.
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
+      local nvim_lsp = require 'lspconfig'
       local servers = {
-        -- clangd = {},
-        -- gopls = {},
-        -- pyright = {},
-        -- rust_analyzer = {},
-        -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
+        clangd = {},
+        gopls = {},
+        pyright = {},
+        ruff_lsp = {},
+        ruff = {},
+        rust_analyzer = {},
+        denols = {
+          root_dir = nvim_lsp.util.root_pattern('deno.json', 'deno.jsonc'),
+        },
+        vtsls = {
+          root_dir = nvim_lsp.util.root_pattern 'package.json',
+          single_file_support = false,
+          settings = {
+            javascript = {
+              inlayHints = {
+                parameterNames = { enabled = 'literals' },
+                parameterTypes = { enabled = true },
+                variableTypes = { enabled = true },
+                propertyDeclarationTypes = { enabled = true },
+                functionLikeReturnTypes = { enabled = true },
+                enumMemberValues = { enabled = true },
+              },
+            },
+
+            typescript = {
+              inlayHints = {
+                parameterNames = { enabled = 'literals' },
+                parameterTypes = { enabled = true },
+                variableTypes = { enabled = true },
+                propertyDeclarationTypes = { enabled = true },
+                functionLikeReturnTypes = { enabled = true },
+                enumMemberValues = { enabled = true },
+              },
+            },
+          },
+        },
+        -- tsserver = {
+        --   commands = {
+        --     TSOrganizeImports = {
+        --       TSOrganizeImports,
+        --       description = 'Organize Imports',
+        --     },
+        --     TSRemoveUnused = {
+        --       TSRemoveUnused,
+        --       description = 'Remove unused',
+        --     },
+        --   },
         --
-        -- Some languages (like typescript) have entire language plugins that can be useful:
-        --    https://github.com/pmizio/typescript-tools.nvim
+        --   completions = {
+        --     completeFunctionCalls = true,
+        --   },
+        --   settings = {
+        --     javascript = {
+        --       inlayHints = {
+        --         includeInlayEnumMemberValueHints = true,
+        --         includeInlayFunctionLikeReturnTypeHints = true,
+        --         includeInlayFunctionParameterTypeHints = true,
+        --         includeInlayParameterNameHints = 'all', -- 'none' | 'literals' | 'all';
+        --         includeInlayParameterNameHintsWhenArgumentMatchesName = true,
+        --         includeInlayPropertyDeclarationTypeHints = true,
+        --         includeInlayVariableTypeHints = false,
+        --       },
+        --     },
         --
-        -- But for many setups, the LSP (`tsserver`) will work just fine
-        -- tsserver = {},
-        --
+        --     typescript = {
+        --       inlayHints = {
+        --         includeInlayEnumMemberValueHints = true,
+        --         includeInlayFunctionLikeReturnTypeHints = true,
+        --         includeInlayFunctionParameterTypeHints = true,
+        --         includeInlayParameterNameHints = 'all', -- 'none' | 'literals' | 'all';
+        --         includeInlayParameterNameHintsWhenArgumentMatchesName = true,
+        --         includeInlayPropertyDeclarationTypeHints = true,
+        --         includeInlayVariableTypeHints = false,
+        --       },
+        --     },
+        --   },
+        -- },
+
+        eslint = {
+          on_attach = function(bufnr)
+            vim.api.nvim_create_autocmd('BufWritePre', {
+              buffer = tonumber(bufnr),
+              command = 'EslintFixAll',
+            })
+          end,
+          completions = {
+            completeFunctionCalls = true,
+          },
+        },
 
         lua_ls = {
           -- cmd = {...},
@@ -195,4 +312,3 @@ return {
     end,
   },
 }
--- vim: ts=2 sts=2 sw=2 et

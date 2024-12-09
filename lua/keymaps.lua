@@ -10,7 +10,6 @@ vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = 'Go to previous [D]
 vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next [D]iagnostic message' })
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror messages' })
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
-
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
 -- is not what someone will guess without a bit more experience.
@@ -48,4 +47,25 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   end,
 })
 
--- vim: ts=2 sts=2 sw=2 et
+-- Find and center
+vim.keymap.set('n', 'n', 'nzzzv')
+vim.keymap.set('n', 'N', 'Nzzzv')
+
+-- Navigate between splits
+vim.keymap.set('n', '<C-k>', ':wincmd k<CR>', opts)
+vim.keymap.set('n', '<C-j>', ':wincmd j<CR>', opts)
+vim.keymap.set('n', '<C-h>', ':wincmd h<CR>', opts)
+vim.keymap.set('n', '<C-l>', ':wincmd l<CR>', opts)
+
+-- Move text up and down
+vim.keymap.set('v', '<A-j>', ':m .+1<CR>==v', opts)
+vim.keymap.set('v', '<A-k>', ':m .-2<CR>==v', opts)
+
+-- Keep last yanked when pasting
+vim.keymap.set('v', 'p', '"_dP', opts)
+
+-- Tabs
+vim.keymap.set('n', '<leader>to', ':tabnew<CR>', opts, { desc = 'New Tab' }) -- open new tab
+vim.keymap.set('n', '<leader>tx', ':tabclose<CR>', opts, { desc = 'Close Tab' }) -- close current tab
+vim.keymap.set('n', '<leader>tn', ':tabn<CR>', opts, { desc = 'Go to Next Tab' }) --  go to next tab
+vim.keymap.set('n', '<leader>tp', ':tabp<CR>', opts, { desc = 'Go to Prev Tab' }) --  go to previous tab
